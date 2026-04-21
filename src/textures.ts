@@ -1,4 +1,7 @@
 import * as THREE from 'three'
+import backgroundUrl from './assets/background.png'
+import midgroundUrl from './assets/midground.png'
+import foregroundUrl from './assets/foreground.png'
 
 function createBackgroundTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas')
@@ -108,6 +111,29 @@ function createForegroundTexture(): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(canvas)
   texture.needsUpdate = true
   return texture
+}
+
+export async function loadImageTextures(): Promise<THREE.Texture[]> {
+  const loader = new THREE.TextureLoader()
+
+  const loadTexture = (url: string) =>
+    new Promise<THREE.Texture>((resolve, reject) => {
+      loader.load(
+        url,
+        (texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace
+          resolve(texture)
+        },
+        undefined,
+        reject
+      )
+    })
+
+  return Promise.all([
+    loadTexture(backgroundUrl),
+    loadTexture(midgroundUrl),
+    loadTexture(foregroundUrl)
+  ])
 }
 
 export function createFallbackTextures(): THREE.Texture[] {

@@ -57,7 +57,7 @@ export function trackFace(video: HTMLVideoElement, now: number): FaceState {
   const faceWidth = maxX - minX
 
   return {
-    x: (centerX - 0.5) * 2,
+    x: -(centerX - 0.5) * 2,
     y: (centerY - 0.5) * 2,
     z: faceWidth,
     detected: true

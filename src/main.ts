@@ -2,7 +2,7 @@ import './style.css'
 import { setupCamera } from './camera'
 import { createTracker, trackFace } from './tracker'
 import { ParallaxScene } from './scene'
-import { createFallbackTextures } from './textures'
+import { createFallbackTextures, loadImageTextures } from './textures'
 import { ImageParallaxMode } from './modes/image-parallax-mode'
 import { WebcamParallaxMode } from './modes/webcam-parallax-mode'
 
@@ -45,14 +45,25 @@ async function bootstrap() {
     video.className = 'camera-preview'
     ui.append(video)
 
+    status.textContent = 'Initializing face tracker...'
     await createTracker()
 
+    status.textContent = 'Loading textures...'
+    let textures = createFallbackTextures()
+
+    try {
+      textures = await loadImageTextures()
+      status.textContent = 'Using PNG layers'
+    } catch (error) {
+      console.warn('Failed to load PNG textures, using fallback textures', error)
+      status.textContent = 'PNG layers not found, using fallback textures'
+    }
+
     const scene = new ParallaxScene(canvasContainer)
-    const textures = createFallbackTextures()
 
     let currentMode: ModeName = 'image'
 
-    const imageMode = new ImageParallaxMode(textures)
+    const imageMode = new ImageParallaxMode(textures, scene['camera'])
     const webcamMode = new WebcamParallaxMode(video)
 
     function applyMode(mode: ModeName) {

@@ -1,45 +1,58 @@
 import * as THREE from 'three'
 import type { FaceState } from '../types'
 import type { ParallaxMode } from './types'
+import { fitPlaneToView } from '../utils/fit-plane'
+
+type LayerMesh = {
+  mesh: THREE.Mesh
+  baseY: number
+}
 
 export class ImageParallaxMode implements ParallaxMode {
   private textures: THREE.Texture[]
-  private meshes: THREE.Mesh[] = []
+  private camera: THREE.PerspectiveCamera
+  private layers: LayerMesh[] = []
 
-  constructor(textures: THREE.Texture[]) {
+  constructor(
+    textures: THREE.Texture[],
+    camera: THREE.PerspectiveCamera
+  ) {
     this.textures = textures
+    this.camera = camera
   }
 
   init(scene: THREE.Scene) {
+    this.dispose(scene)
+
     const [backgroundTexture, middleTexture, foregroundTexture] = this.textures
 
-    const layers = [
+    const configs = [
       {
         texture: backgroundTexture,
-        width: 14,
-        height: 8,
         z: -4,
-        transparent: false
+        transparent: false,
+        scale: 1,
+        baseY: 0
       },
       {
         texture: middleTexture,
-        width: 10,
-        height: 6,
         z: -1,
-        transparent: true
+        transparent: true,
+        scale: 0.9,
+        baseY: -0.2
       },
       {
         texture: foregroundTexture,
-        width: 8,
-        height: 5,
         z: 2,
-        transparent: true
+        transparent: true,
+        scale: 0.6,
+        baseY: -1.6
       }
     ]
 
-    this.meshes = layers.map((layer) => {
+    this.layers = configs.map((layer) => {
       const mesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(layer.width, layer.height),
+        new THREE.PlaneGeometry(1, 1),
         new THREE.MeshBasicMaterial({
           map: layer.texture,
           transparent: layer.transparent
@@ -47,40 +60,54 @@ export class ImageParallaxMode implements ParallaxMode {
       )
 
       mesh.position.z = layer.z
+
+      const distance = Math.abs(this.camera.position.z - mesh.position.z)
+      fitPlaneToView(mesh, this.camera, distance, layer.texture)
+      mesh.scale.multiplyScalar(layer.scale)
+      mesh.position.y = layer.baseY
+
       scene.add(mesh)
-      return mesh
+
+      return {
+        mesh,
+        baseY: layer.baseY
+      }
     })
   }
 
   update(face: FaceState) {
-    if (!this.meshes.length) {
+    if (!this.layers.length) {
       return
     }
 
     const driftX = face.detected ? face.x * 0.08 : 0
     const driftY = face.detected ? face.y * 0.05 : 0
 
-    this.meshes[0].position.x = driftX * 0.3
-    this.meshes[0].position.y = -driftY * 0.3
+    const background = this.layers[0]
+    const middle = this.layers[1]
+    const foreground = this.layers[2]
 
-    this.meshes[1].position.x = driftX * 0.6
-    this.meshes[1].position.y = -driftY * 0.6
+    background.mesh.position.x = driftX * 0.3
+    background.mesh.position.y = background.baseY - driftY * 0.3
 
-    this.meshes[2].position.x = driftX
-    this.meshes[2].position.y = -driftY
+    middle.mesh.position.x = driftX * 0.6
+    middle.mesh.position.y = middle.baseY - driftY * 0.4
+
+    foreground.mesh.position.x = driftX
+    foreground.mesh.position.y = foreground.baseY
   }
 
   dispose(scene: THREE.Scene) {
-    for (const mesh of this.meshes) {
-      scene.remove(mesh)
-      mesh.geometry.dispose()
+    for (const layer of this.layers) {
+      scene.remove(layer.mesh)
+      layer.mesh.geometry.dispose()
 
-      const material = mesh.material
+      const material = layer.mesh.material
       if (material instanceof THREE.Material) {
         material.dispose()
       }
     }
 
-    this.meshes = []
+    this.layers = []
   }
 }
