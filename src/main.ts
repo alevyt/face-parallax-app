@@ -2,6 +2,7 @@ import './style.css'
 import { setupCamera } from './camera'
 import { createTracker, trackFace } from './tracker'
 import { ParallaxScene } from './scene'
+import { createFallbackTextures } from './textures'
 
 async function bootstrap() {
   const app = document.querySelector<HTMLDivElement>('#app')
@@ -32,7 +33,8 @@ async function bootstrap() {
 
     await createTracker()
 
-    const scene = new ParallaxScene(canvasContainer)
+    const textures = createFallbackTextures()
+    const scene = new ParallaxScene(canvasContainer, textures)
 
     function loop() {
       const face = trackFace(video, performance.now())
